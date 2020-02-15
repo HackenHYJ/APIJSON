@@ -8,7 +8,7 @@
 <p align="center" >
   <a href="https://github.com/TommyLemon/APIJSON/tree/master/MySQL"><img src="https://img.shields.io/badge/MySQL-5.7%2B-brightgreen.svg?style=flat"></a>
   <a href="https://github.com/TommyLemon/APIJSON/tree/master/PostgreSQL"><img src="https://img.shields.io/badge/PostgreSQL-9.5%2B-brightgreen.svg?style=flat"></a>
-  <a href="https://github.com/TommyLemon/APIJSON/tree/master/SQLServer"><img src="https://img.shields.io/badge/SQLServer-2016%2B-brightgreen.svg?style=flat"></a>
+  <a href="https://github.com/TommyLemon/APIJSON/tree/master/SQLServer"><img src="https://img.shields.io/badge/SQLServer-2012%2B-brightgreen.svg?style=flat"></a>
   <a href="https://github.com/TommyLemon/APIJSON/tree/master/Oracle"><img src="https://img.shields.io/badge/Oracle-11%2B-brightgreen.svg?style=flat"></a>
   <a href="https://github.com/TommyLemon/APIJSON/tree/master/MySQL"><img src="https://img.shields.io/badge/TiDB-2.1%2B-brightgreen.svg?style=flat"></a>
 </p>
@@ -29,7 +29,7 @@
   <a href="https://github.com/TommyLemon/APIJSON/blob/master/README-English.md">English</a>
   <a href="https://github.com/TommyLemon/APIJSON/blob/master/Document.md">通用文档</a>
   <a href="http://i.youku.com/apijson">视频教程</a>
-  <a href="http://apijson.org:8000/auto">在线工具</a>
+  <a href="http://apijson.org/auto">在线工具</a>
 </p>
 
 <p align="center" >
@@ -50,7 +50,7 @@ APIJSON是一种专为API而生的 JSON网络传输协议 以及 基于这套协
 后端再也不用为了兼容旧接口写新版接口和文档了！再也不会被前端随时随地没完没了地烦了！
 
 <p align="center" >
-  <a ><img src="https://raw.githubusercontent.com/TommyLemon/StaticResources/master/APIJSON_GVPAwardCertificate-small.jpg"></a>
+  <a ><img src="https://raw.githubusercontent.com/TommyLemon/StaticResources/master/APIJSON/APIJSONisOneOfTheGVPsIn2019-small.jpg"></a>
 </p>
 
 ### 特点功能
@@ -225,8 +225,11 @@ APIJSON是一种专为API而生的 JSON网络传输协议 以及 基于这套协
 
 [APIJSON 自动化接口和文档的快速开发神器 （一）](https://blog.csdn.net/qq_41829492/article/details/88670940)
 
+[APIJSON在mac电脑环境下配置去连接SQL Server](https://juejin.im/post/5e16d21ef265da3e2e4f4956)
+
+
 ### 生态项目
-[APIAuto](https://github.com/TommyLemon/APIAuto) 自动化接口管理工具，自动生成文档与注释、自动生成代码、自动化回归测试、自动静态检查等
+[APIAuto](https://github.com/TommyLemon/APIAuto) 机器学习测试、自动生成代码、自动静态检查、自动生成文档与注释等，做最先进的接口管理工具
 
 [apijson-doc](https://github.com/vincentCheng/apijson-doc) APIJSON 官方文档，提供排版清晰、搜索方便的文档内容展示，包括设计规范、图文教程等
 
@@ -244,9 +247,9 @@ APIJSON是一种专为API而生的 JSON网络传输协议 以及 基于这套协
 
 [uliweb-apijson](https://github.com/zhangchunlin/uliweb-apijson) Python 版 APIJSON，支持 MySQL, PostgreSQL, SQL Server, Oracle, SQLite 等
 
-[APIJSON](https://github.com/crazytaxi824/APIJSON) Go 版 APIJSON，功能开发中...
+[APIJSON](https://github.com/crazytaxi824/APIJSON) Go 版 APIJSON，功能开发中...([不可用且长期未更新，期待热心开发者帮助完善或新增项目](https://github.com/APIJSON/APIJSON/issues/111))
 
-[APIJSONKOTLIN](https://github.com/luckyxiaomo/APIJSONKOTLIN) Kotlin 版 APIJSON，基础框架搭建中...
+[APIJSONKOTLIN](https://github.com/luckyxiaomo/APIJSONKOTLIN) Kotlin 版 APIJSON，基础框架搭建中...(不可用且长期未更新，期待热心开发者帮助完善或新增项目)
 
 [APIJSONParser](https://github.com/Zerounary/APIJSONParser) 第三方 APIJSON 解析器，将 JSON 动态解析成 SQL
 

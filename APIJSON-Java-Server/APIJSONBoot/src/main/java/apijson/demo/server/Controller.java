@@ -24,16 +24,35 @@ import static zuo.biao.apijson.RequestMethod.PUT;
 
 import java.net.URLDecoder;
 import java.rmi.ServerException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
 import com.alibaba.fastjson.JSONObject;
 
@@ -63,6 +82,7 @@ import zuo.biao.apijson.server.model.Request;
  * <br > 3.调试方便 - 建议使用 APIJSON在线测试工具 或 Postman
  * @author Lemon
  */
+@Service
 @RestController
 @RequestMapping("")
 public class Controller {
@@ -200,7 +220,7 @@ public class Controller {
 	public static final String FUNCTION_;
 	public static final String REQUEST_;
 	public static final String ACCESS_;
-	
+
 	public static final String USER_;
 	public static final String PRIVACY_;
 	public static final String VERIFY_; //加下划线后缀是为了避免 Verify 和 verify 都叫VERIFY，分不清
@@ -208,7 +228,7 @@ public class Controller {
 		FUNCTION_ = Function.class.getSimpleName();
 		REQUEST_ = Request.class.getSimpleName();
 		ACCESS_ = Access.class.getSimpleName();
-		
+
 		USER_ = User.class.getSimpleName();
 		PRIVACY_ = Privacy.class.getSimpleName();
 		VERIFY_ = Verify.class.getSimpleName();
@@ -233,8 +253,8 @@ public class Controller {
 
 	public static final String TYPE = "type";
 
-	
-	
+
+
 	/**重新加载配置
 	 * @param request
 	 * @return
@@ -261,7 +281,7 @@ public class Controller {
 		} catch (Exception e) {
 			return DemoParser.extendErrorResult(requestObject, e);
 		}
-		
+
 		JSONResponse response = new JSONResponse(headVerify(Verify.TYPE_RELOAD, phone, verify));
 		response = response.getJSONResponse(VERIFY_);
 		if (JSONResponse.isExist(response) == false) {
@@ -269,9 +289,9 @@ public class Controller {
 		}
 
 		JSONObject result = DemoParser.newSuccessResult();
-		
+
 		boolean reloadAll = StringUtil.isEmpty(type, true) || "ALL".equals(type);
-		
+
 		if (reloadAll || "FUNCTION".equals(type)) {
 			try {
 				result.put(FUNCTION_, DemoFunction.init());
@@ -280,7 +300,7 @@ public class Controller {
 				result.put(FUNCTION_, DemoParser.newErrorResult(e));
 			}
 		}
-		
+
 		if (reloadAll || "REQUEST".equals(type)) {
 			try {
 				result.put(REQUEST_, StructureUtil.init());
@@ -289,7 +309,7 @@ public class Controller {
 				result.put(REQUEST_, DemoParser.newErrorResult(e));
 			}
 		}
-		
+
 		if (reloadAll || "ACCESS".equals(type)) {
 			try {
 				result.put(ACCESS_, DemoVerifier.init());
@@ -298,7 +318,7 @@ public class Controller {
 				result.put(ACCESS_, DemoParser.newErrorResult(e));
 			}
 		}
-		
+
 		return result;
 	}
 
@@ -951,5 +971,175 @@ public class Controller {
 		return new DemoParser(PUT).setSession(session).parseResponse(requestObject);
 	}
 
+
+	public static final String COOKIE = "Cookie";
+	public static final List<String> EXCEPT_HEADER_LIST;
+	static {
+		EXCEPT_HEADER_LIST = Arrays.asList(  //accept-encoding 在某些情况下导致乱码，origin 和 sec-fetch-mode 等 CORS 信息导致服务器代理失败
+				"accept-encoding", "accept-language", // "accept", "connection"
+				"host", "origin", "referer", "user-agent", "sec-fetch-mode", "sec-fetch-site", "sec-fetch-dest", "sec-fetch-user"
+				);
+	}
+
+	@Autowired
+	HttpServletRequest request;
+	@Autowired
+	HttpServletResponse response;
+
+	/**代理接口，解决前端（APIAuto等）跨域问题
+	 * @param exceptHeaders 排除请求头，必须放在最前面，放后面可能被当成 $_delegate_url 的一部分
+	 * @param url 被代理的 url
+	 * @param body POST Body
+	 * @param method HTTP Method
+	 * @param session HTTP session
+	 * @return
+	 */
+	@RequestMapping(value = "/delegate")
+	public String delegate(
+			@RequestParam(value = "$_except_headers", required = false) String exceptHeaders,
+			@RequestParam("$_delegate_url") String url, 
+			@RequestBody(required = false) String body, 
+			HttpMethod method, HttpSession session
+			) {
+
+		Enumeration<String> names = request.getHeaderNames();
+		HttpHeaders headers = null;
+		String name;
+		if (names != null) {
+			headers = new HttpHeaders();
+			//Arrays.asList(null) 抛异常，可以排除不存在的头来替代  exceptHeaders == null //空字符串表示不排除任何头
+			List<String> exceptHeaderList = StringUtil.isEmpty(exceptHeaders, true) 
+					? EXCEPT_HEADER_LIST : Arrays.asList(StringUtil.split(exceptHeaders));
+
+			while (names.hasMoreElements()) {
+				name = names.nextElement();
+				if (name != null && exceptHeaderList.contains(name.toLowerCase()) == false) {
+					headers.add(name, request.getHeader(name));
+				}
+			}
+
+			@SuppressWarnings("unchecked")
+			List<String> cookie = session == null ? null : (List<String>) session.getAttribute(COOKIE);
+			if (cookie != null && cookie.isEmpty() == false) {
+				List<String> c = headers.get(COOKIE);
+				if (c == null) {
+					c = new ArrayList<>();
+				}
+				c.addAll(cookie);
+				headers.put(COOKIE, c);
+			}
+		}
+
+		//可能是 HTTP POST FORM，即便是 HTTP POST JSON，URL 的参数也要拼接，尽可能保持原样  if (method == HttpMethod.GET) {
+		Map<String, String[]> map = request.getParameterMap();
+
+		if (map != null) {
+			map = new HashMap<>(map);  //解决 throw exception: Unmodified Map
+			map.remove("$_except_headers");
+			map.remove("$_delegate_url");
+
+			Set<Entry<String, String[]>> set = map == null ? null : map.entrySet();
+
+			if (set != null && set.isEmpty() == false) {
+
+				if (url.contains("?") == false) {
+					url += "?";
+				}
+				boolean first = url.endsWith("?");
+
+				for (Entry<String, String[]> e : set) {
+					if (e != null) {
+						url += ((first ? "" : "&") + e.getKey() + "=" + ( e.getValue() == null || e.getValue().length <= 0 ? "" : StringUtil.getString(e.getValue()[0]) ));
+						first = false;
+					}
+				}
+			}
+		}
+		// }
+
+		RestTemplate client = new RestTemplate();
+		// 请勿轻易改变此提交方式，大部分的情况下，提交方式都是表单提交
+		HttpEntity<String> requestEntity = new HttpEntity<>(method == HttpMethod.GET ? null : body, headers);
+		// 执行HTTP请求，这里可能抛异常，不要包装，直接让它抛，能够在浏览器 Console/XHR/{i}/Preview
+		// 看到 error: "Internal Server Error" message: "405 null" 之类的包括信息，
+		// 包装后反而容易混淆，并且会因为 JSON 结构不一致导致解析问题
+		ResponseEntity<String> entity = client.exchange(url, method, requestEntity, String.class);
+
+		HttpHeaders hs = entity.getHeaders();
+		if (session != null && hs != null) {
+			List<String> cookie = hs.get("Set-Cookie");
+			if (cookie != null && cookie.isEmpty() == false) {
+				session.setAttribute(COOKIE, cookie);
+			}
+		}
+		return entity.getBody();
+	}
+
+
+	/**Swagger 文档 Demo，供 APIAuto 测试导入 Swagger 文档到数据库用
+	 * @return
+	 */
+	@GetMapping("v2/api-docs")
+	public String swaggerAPIDocs() {
+		return 	"{\n"+
+				"    \"paths\": {\n"+
+				"        \"/user/list\": {\n"+
+				"            \"get\": {\n"+
+				"                \"summary\": \"用户列表\",\n"+
+				"                \"parameters\": [\n"+
+				"                    {\n"+
+				"                        \"name\": \"pageSize\",\n"+
+				"                        \"description\": \"每页数量\",\n"+
+				"                        \"default\": 10\n"+
+				"                    },\n"+
+				"                    {\n"+
+				"                        \"name\": \"page\",\n"+
+				"                        \"default\": 1\n"+
+				"                    },\n"+
+				"                    {\n"+
+				"                        \"name\": \"searchKey\",\n"+
+				"                        \"description\": \"搜索关键词\",\n"+
+				"                        \"default\": \"a\"\n"+
+				"                    }\n"+
+				"                ]\n"+
+				"            }\n"+
+				"        },\n"+
+				"        \"/user\": {\n"+
+				"            \"get\": {\n"+
+				"                \"summary\": \"用户详情\",\n"+
+				"                \"parameters\": [\n"+
+				"                    {\n"+
+				"                        \"name\": \"id\",\n"+
+				"                        \"description\": \"主键\",\n"+
+				"                        \"default\": 82001\n"+
+				"                    }\n"+
+				"                ]\n"+
+				"            }\n"+
+				"        },\n"+
+				"        \"/comment/post\": {\n"+
+				"            \"post\": {\n"+
+				"                \"summary\": \"新增评论\",\n"+
+				"                \"parameters\": [\n"+
+				"                    {\n"+
+				"                        \"name\": \"userId\",\n"+
+				"                        \"description\": \"用户id\",\n"+
+				"                        \"default\": 82001\n"+
+				"                    },\n"+
+				"                    {\n"+
+				"                        \"name\": \"momentId\",\n"+
+				"                        \"description\": \"动态id\",\n"+
+				"                        \"default\": 15\n"+
+				"                    },\n"+
+				"                    {\n"+
+				"                        \"name\": \"conent\",\n"+
+				"                        \"description\": \"内容\",\n"+
+				"                        \"default\": \"测试评论\"\n"+
+				"                    }\n"+
+				"                ]\n"+
+				"            }\n"+
+				"        }\n"+
+				"    }\n"+
+				"}";
+	}
 
 }
